@@ -1,15 +1,22 @@
 <template>
-  <router-view v-if="isLoginPage" />
+  <router-view v-if="isBare" />
   <Layout v-else />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from './components/Layout.vue'
 
 const route = useRoute()
-const isLoginPage = computed(() => route.path === '/login')
+// 移动端（含安卓 App 壳）访问 /field 野外科考页时，不套桌面侧边栏 Layout，页面裸渲染自管滚动
+const isMobile = (typeof window !== 'undefined' && typeof window.AndroidBridge !== 'undefined')
+  || (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) && window.innerWidth <= 900)
+const isBare = computed(() => route.path === '/login' || (route.path === '/field' && isMobile))
+
+watchEffect(() => {
+  document.body.classList.toggle('bare-field', route.path === '/field' && isMobile)
+})
 </script>
 
 <style>
@@ -98,6 +105,10 @@ body::after {
 }
 
 #app { height: 100vh; position: relative; z-index: 1; }
+
+/* 移动端 /field 裸页模式：解锁全局滚动，页面自然向下延展 */
+body.bare-field { overflow: auto !important; }
+body.bare-field #app { height: auto; min-height: 100vh; }
 
 /* 滚动条 */
 ::-webkit-scrollbar { width: 5px; height: 5px; }

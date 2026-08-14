@@ -143,7 +143,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { ElMessage } from 'element-plus'
@@ -326,6 +326,7 @@ async function onPhotos(e) {
   }
   saveField(); renderFieldMap()
   let msg = `已导入 ${list.length} 张照片，${ok} 张解析出拍摄位置${projectId.value ? `，${synced} 张同步至平台` : ''}`
+  if (!projectId.value) msg += '；未选择项目，照片仅保存在本机（在上方选择「同步到项目」后导入才会上传到平台）'
   if (heicN) msg += `；${heicN} 张为 HEIC 格式无法读取定位，请在 iPhone「设置-相机-格式」改为"兼容性最佳"或转 JPG`
   if (noGpsN) msg += `；${noGpsN} 张无 GPS 信息（可能经微信/QQ 转存被剥离，或未开启相机定位），请改用原图上传`
   if (heicN || noGpsN) ElMessage.warning(msg); else ElMessage.success(msg)
@@ -634,14 +635,20 @@ onMounted(async () => {
       saveField()
     }
   } catch (e) { /* 离线或接口不可用时使用本地缓存 */ }
-  map = L.map(mapEl.value, { zoomControl: false }).setView([29.65, 91.1], 11)
+  map = L.map(mapEl.value, { zoomControl: false, preferCanvas: true, tap: true, touchZoom: true, bounceAtZoomLimits: false }).setView([29.65, 91.1], 11)
   L.control.zoom({ position: 'bottomright' }).addTo(map)
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy;OpenStreetMap, &copy;CartoDB', maxZoom: 19, subdomains: 'abcd' }).addTo(map)
   layerGroup = L.layerGroup().addTo(map)
   map.on('click', e => { if (pickTarget.value) onMapPick(e.latlng) })
   renderFieldMap()
+  // WebView/移动端布局稳定后重算地图尺寸，否则容器高度未就位时地图渲染不全
+  nextTick(() => map && map.invalidateSize())
+  setTimeout(() => map && map.invalidateSize(), 350)
+  setTimeout(() => map && map.invalidateSize(), 1200)
+  window.addEventListener('resize', onWinResize)
 })
-onUnmounted(() => { stopWatch(); if (appTimer) clearInterval(appTimer); if (map) { map.remove(); map = null } })
+function onWinResize() { if (map) map.invalidateSize() }
+onUnmounted(() => { window.removeEventListener('resize', onWinResize); stopWatch(); if (appTimer) clearInterval(appTimer); if (map) { map.remove(); map = null } })
 </script>
 
 <style scoped>
@@ -701,8 +708,8 @@ onUnmounted(() => { stopWatch(); if (appTimer) clearInterval(appTimer); if (map)
     resize: vertical; overflow: hidden;
   }
   .field-panel { max-height: none; overflow-y: visible; }
-  .field-page { overflow-y: auto; }
-  .page-title { font-size: 17px; }
+  .field-page { overflow-y: auto; padding: 10px 12px 26px; }
+  .page-title { font-size: 17px; padding-top: 2px; }
   .page-subtitle { font-size: 11px; }
   .up-actions { flex-wrap: wrap; }
   .up-btn { flex: 1 1 30%; font-size: 12px; }

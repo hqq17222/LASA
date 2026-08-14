@@ -65,11 +65,14 @@ class MainActivity : Activity() {
                 callback?.invoke(origin, hasLocationPermission(), false)
             }
 
-            // <input type=file> → 相机拍摄 / 相册选择
+            // <input type=file> → 按网页参数分流：拍照直启相机 / 录像直启摄像 / 相册支持多选
             override fun onShowFileChooser(wv: WebView?, cb: ValueCallback<Array<Uri>>?, params: FileChooserParams?): Boolean {
                 fileCallback?.onReceiveValue(null)
                 fileCallback = cb
-                return openPicker()
+                val accept = params?.acceptTypes?.filter { it.isNotBlank() } ?: emptyList()
+                val capture = params?.isCaptureEnabled == true
+                val multi = params?.mode == FileChooserParams.MODE_OPEN_MULTIPLE
+                return openPicker(accept, capture, multi)
             }
 
             // 网页请求摄像头/麦克风权限（getUserMedia）→ 壳内直接授予（内容可信）
@@ -90,6 +93,7 @@ class MainActivity : Activity() {
         val perms = mutableListOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.CAMERA,
         )
         if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
         val lacking = perms.filter {
@@ -100,25 +104,41 @@ class MainActivity : Activity() {
         }
     }
 
-    /** 打开「拍照 / 相册」选择器 */
-    private fun openPicker(): Boolean {
+    /** 打开「拍照 / 录像 / 相册」选择器：capture 时直启相机；相册按 accept 限定类型并支持多选 */
+    private fun openPicker(accept: List<String>, capture: Boolean, allowMulti: Boolean): Boolean {
         return try {
-            val content = Intent(Intent.ACTION_GET_CONTENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
-            }
+            val wantVideo = accept.any { it.startsWith("video") }
+            val wantImage = accept.any { it.startsWith("image") }
+            val onlyExt = accept.isNotEmpty() && accept.all { it.startsWith(".") }
             val dir = File(cacheDir, "camera").apply { mkdirs() }
-            val photo = File(dir, "capture_${System.currentTimeMillis()}.jpg")
-            cameraUri = FileProvider.getUriForFile(this, "cn.lasa.fieldapp.fileprovider", photo)
-            val camera = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+            val ext = if (wantVideo && !wantImage) ".mp4" else ".jpg"
+            cameraUri = FileProvider.getUriForFile(this, "cn.lasa.fieldapp.fileprovider",
+                File(dir, "capture_${System.currentTimeMillis()}$ext"))
+            val shoot = Intent(if (wantVideo && !wantImage) MediaStore.ACTION_VIDEO_CAPTURE else MediaStore.ACTION_IMAGE_CAPTURE).apply {
                 putExtra(MediaStore.EXTRA_OUTPUT, cameraUri)
                 addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
+            if (capture) {  // 网页 input 带 capture 属性：直启拍摄，不弹选择器
+                startActivityForResult(shoot, REQ_FILE)
+                return true
+            }
+            val content = Intent(Intent.ACTION_GET_CONTENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                when {
+                    onlyExt || accept.isEmpty() -> type = "*/*"
+                    wantImage && wantVideo -> {
+                        type = "*/*"
+                        putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                    }
+                    wantVideo -> type = "video/*"
+                    else -> type = "image/*"
+                }
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMulti)
+            }
             val chooser = Intent(Intent.ACTION_CHOOSER).apply {
                 putExtra(Intent.EXTRA_INTENT, content)
-                putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(camera))
-                putExtra(Intent.EXTRA_TITLE, "拍照或选择文件")
+                if (!onlyExt) putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(shoot))
+                putExtra(Intent.EXTRA_TITLE, "拍照/拍摄或选择文件")
             }
             startActivityForResult(chooser, REQ_FILE)
             true
@@ -161,7 +181,7 @@ class MainActivity : Activity() {
         fun isApp(): Boolean = true
 
         @JavascriptInterface
-        fun appVersion(): String = "1.0.0"
+        fun appVersion(): String = "1.1.0"
 
         @JavascriptInterface
         fun startTrack(): String {

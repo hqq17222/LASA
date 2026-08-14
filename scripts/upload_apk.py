@@ -1,8 +1,8 @@
 """上传 APK 到服务器静态目录并验证下载链接；同时尝试复制到工作区。"""
-import os, shutil, paramiko
+import os, shutil, sys, paramiko
 
 APK = r"C:\tools\build\android-app\app\build\outputs\apk\debug\app-debug.apk"
-NAME = "lasa-field-app-v1.0.0.apk"
+NAME = sys.argv[1] if len(sys.argv) > 1 else "lasa-field-app-v1.0.0.apk"
 PASS = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".lasa_pass"), encoding="utf-8").read().strip()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

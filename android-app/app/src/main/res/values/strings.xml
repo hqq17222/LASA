@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">南北山外业调查</string>
+    <string name="track_channel_name">轨迹记录</string>
+    <string name="track_channel_desc">外业轨迹后台记录时显示</string>
+    <string name="track_notif_title">正在记录外业轨迹</string>
+</resources>

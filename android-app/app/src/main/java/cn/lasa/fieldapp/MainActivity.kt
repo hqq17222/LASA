@@ -31,7 +31,7 @@ import java.io.File
 class MainActivity : Activity() {
 
     companion object {
-        const val BASE_URL = "http://106.15.35.204:18480/field"
+        const val BASE_URL = "http://106.15.35.204:18480/m"
         const val REQ_PERMS = 1001
         const val REQ_FILE = 1002
     }
@@ -181,7 +181,7 @@ class MainActivity : Activity() {
         fun isApp(): Boolean = true
 
         @JavascriptInterface
-        fun appVersion(): String = "1.1.0"
+        fun appVersion(): String = "1.2.0"
 
         @JavascriptInterface
         fun startTrack(): String {

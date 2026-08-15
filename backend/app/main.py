@@ -84,7 +84,7 @@ async def auth_middleware(request: Request, call_next):
 
 # 注册路由
 prefix = settings.API_PREFIX
-from app.routers import health, projects, data_sources, observations, indicators, alarms, reports, map, models, equipments, phase_plans, patrol_photos, field_survey, auth, users
+from app.routers import health, projects, data_sources, observations, indicators, alarms, reports, map, models, equipments, phase_plans, patrol_photos, field_survey, auth, users, voice
 
 app.include_router(health.router, prefix=prefix, tags=["系统"])
 app.include_router(auth.router, prefix=prefix)
@@ -101,6 +101,7 @@ app.include_router(equipments.router, prefix=prefix)
 app.include_router(phase_plans.router, prefix=prefix)
 app.include_router(patrol_photos.router, prefix=prefix)
 app.include_router(field_survey.router, prefix=prefix)
+app.include_router(voice.router, prefix=prefix)
 
 logger.info(f"Registered {len(app.routes)} routes")
 

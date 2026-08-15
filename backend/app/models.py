@@ -167,6 +167,27 @@ class ProjectLayer(Base):
     created_by: Mapped[Optional[str]] = mapped_column(String(50), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+
+class SurveyRecord(Base):
+    """样地调查记录（外业 App 提交：物种/树高/胸径/郁闭度/盖度等）"""
+    __tablename__ = "survey_records"
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    project_id: Mapped[int] = mapped_column(Integer, index=True, default=0)
+    plot_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)       # 关联计划样地（可空=自由调查点）
+    plot_code: Mapped[Optional[str]] = mapped_column(String(50), default="")     # 样地编号冗余（离线时只有编号）
+    lon: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    altitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    species: Mapped[Optional[str]] = mapped_column(String(200), default="")      # 优势种/目标种
+    height_m: Mapped[Optional[float]] = mapped_column(Float, nullable=True)      # 平均树高 m
+    dbh_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)        # 平均胸径/丛幅 cm
+    canopy_density: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 郁闭度 0-1
+    cover_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)     # 植被盖度 %
+    note: Mapped[Optional[str]] = mapped_column(Text, default="")                # 长势/病虫害/坡向坡位等
+    photo_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)      # 关联巡检照片
+    surveyor: Mapped[Optional[str]] = mapped_column(String(50), default="")      # 调查人（登录用户名）
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
 class PatrolPhoto(Base):
     __tablename__ = "patrol_photos"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -191,6 +212,33 @@ class PatrolPhoto(Base):
     duration: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 录像时长（秒）
     file_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 字节
     uploaded_by: Mapped[Optional[str]] = mapped_column(String(50), default="")  # 上传者用户名
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # ── 植物识别（视觉大模型） ──
+    species: Mapped[Optional[str]] = mapped_column(String(200), default="")        # 物种名（中文）
+    scientific_name: Mapped[Optional[str]] = mapped_column(String(200), default="")  # 拉丁学名
+    species_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 置信度 0-1
+    species_family: Mapped[Optional[str]] = mapped_column(String(100), default="")  # 科
+    species_genus: Mapped[Optional[str]] = mapped_column(String(100), default="")   # 属
+    species_features: Mapped[Optional[str]] = mapped_column(Text, default="")       # 识别依据
+    identified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # 识别时间
+    identified_by: Mapped[Optional[str]] = mapped_column(String(50), default="")    # 识别来源（glm-4v / manual）
+
+
+class VoiceNote(Base):
+    """语音记录：外业语音备注，可选关联照片与定位。"""
+    __tablename__ = "voice_notes"
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    project_id: Mapped[int] = mapped_column(Integer, index=True, default=0)
+    file_path: Mapped[Optional[str]] = mapped_column(String(500), default="")   # 音频直链 /static/xxx
+    duration: Mapped[Optional[float]] = mapped_column(Float, nullable=True)      # 秒
+    transcript: Mapped[Optional[str]] = mapped_column(Text, default="")          # 转写文本
+    asr_error: Mapped[Optional[str]] = mapped_column(String(200), default="")    # 转写失败原因（若有）
+    lon: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    altitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    photo_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)      # 关联巡检照片
+    title: Mapped[Optional[str]] = mapped_column(String(200), default="")
+    uploaded_by: Mapped[Optional[str]] = mapped_column(String(50), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

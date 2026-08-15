@@ -117,8 +117,15 @@ export const patrolPhotoApi = {
   get: (id) => api.get(`/patrol-photos/${id}`),
   updateDefect: (id, data) => api.put(`/patrol-photos/${id}/defect`, data, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }),
   updateLocation: (id, data) => api.patch(`/patrol-photos/${id}/location`, data),
+  identify: (id, context) => api.post(`/patrol-photos/${id}/identify`, { context: context || '' }, { timeout: 150000 }),
+  updateSpecies: (id, data) => api.put(`/patrol-photos/${id}/species`, data),
   batchDelete: (ids) => api.post('/patrol-photos/batch-delete', ids),
   remove: (id) => api.delete(`/patrol-photos/${id}`),
+}
+
+export const voiceApi = {
+  list: (projectId, photoId) => api.get('/voice', { params: { project_id: projectId, photo_id: photoId } }),
+  remove: (id) => api.delete(`/voice/${id}`),
 }
 
 export const fieldOpsApi = {
@@ -129,6 +136,9 @@ export const fieldOpsApi = {
   layers: (projectId) => api.get('/field/layers', { params: { project_id: projectId } }),
   createLayer: (data) => api.post('/field/layers', data),
   removeLayer: (id) => api.delete(`/field/layers/${id}`),
+  surveys: (projectId, plotId) => api.get('/field/surveys', { params: { project_id: projectId, plot_id: plotId } }),
+  createSurvey: (data) => api.post('/field/surveys', data),
+  removeSurvey: (id) => api.delete(`/field/surveys/${id}`),
   teamStatus: () => api.get('/field/team-status'),
   tracks: () => api.get('/field/tracks'),
 }

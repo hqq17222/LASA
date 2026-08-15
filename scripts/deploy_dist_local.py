@@ -11,7 +11,7 @@ def log(m): print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
 # 本地校验新代码在包里
 js = [f for f in os.listdir(os.path.join(DIST, "assets")) if f.endswith(".js")][0]
 code = open(os.path.join(DIST, "assets", js), encoding="utf-8").read()
-for kw in ["bare-field", "仅保存在本机", "invalidateSize"]:
+for kw in ["南北山外业", "找样地", "identify", "surveys"]:
     log(f"包内校验 '{kw}': {kw in code}")
 
 with tarfile.open(PKG, "w:gz") as t:

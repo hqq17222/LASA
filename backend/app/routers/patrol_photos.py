@@ -1,4 +1,5 @@
 """Patrol photo/video upload, EXIF extraction, grouping and defect annotation."""
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, Body, Request
 from pydantic import BaseModel
@@ -10,6 +11,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models import PatrolPhoto
 from app.services.exif_extractor import extract_exif, guess_flight_route, guess_flight_date
+from app.services.plant_identifier import identify_plant
 
 router = APIRouter(prefix="/patrol-photos", tags=["巡检媒体"])
 
@@ -205,6 +207,8 @@ def map_layers(
                 "photo_time": p.photo_time.isoformat() if p.photo_time else "",
                 "altitude": p.altitude,
                 "media_type": p.media_type or "photo",
+                "species": p.species or "",
+                "species_confidence": p.species_confidence,
             },
         })
     return {
@@ -306,6 +310,75 @@ def delete_photo(photo_id: int, db: Session = Depends(get_db)):
     return {"detail": "deleted"}
 
 
+class IdentifyRequest(BaseModel):
+    context: Optional[str] = ""   # 额外上下文（如调查区域、生境说明）
+
+
+class SpeciesUpdate(BaseModel):
+    species: Optional[str] = ""
+    scientific_name: Optional[str] = ""
+    species_confidence: Optional[float] = None
+    species_family: Optional[str] = ""
+    species_genus: Optional[str] = ""
+    species_features: Optional[str] = ""
+
+
+@router.post("/{photo_id}/identify", summary="AI 识别植物种类（DeepSeek V4 识图）")
+async def identify_photo_species(
+    photo_id: int,
+    payload: IdentifyRequest = Body(default=IdentifyRequest()),
+    db: Session = Depends(get_db),
+):
+    p = db.query(PatrolPhoto).get(photo_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    if p.media_type == "video":
+        raise HTTPException(status_code=400, detail="录像不支持植物识别，请使用照片")
+    # 绝对路径：file_path 存的是 /static/xxx，落盘在 UPLOAD_DIR
+    abs_path = settings.UPLOAD_DIR / Path(p.file_path).name
+    if not abs_path.exists():
+        raise HTTPException(status_code=404, detail="照片文件不存在，可能已被删除")
+    result = await identify_plant(str(abs_path), extra_context=payload.context or "")
+    if result.get("error"):
+        raise HTTPException(status_code=502, detail=result["error"])
+    # 识别成功则自动落库（人工确认可在前端再保存）
+    if result.get("recognized") or result.get("species"):
+        p.species = result.get("species", "")
+        p.scientific_name = result.get("scientific_name", "")
+        p.species_confidence = result.get("confidence")
+        p.species_family = result.get("family", "")
+        p.species_genus = result.get("genus", "")
+        p.species_features = result.get("features", "")
+        p.identified_at = datetime.utcnow()
+        p.identified_by = settings.DEEPSEEK_MODEL
+        db.commit()
+        db.refresh(p)
+    return {**_serialize(p), "identification": result}
+
+
+@router.put("/{photo_id}/species", summary="保存/修正物种标记（人工确认）")
+def update_species(
+    photo_id: int,
+    payload: SpeciesUpdate = Body(...),
+    db: Session = Depends(get_db),
+):
+    p = db.query(PatrolPhoto).get(photo_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    p.species = payload.species or ""
+    p.scientific_name = payload.scientific_name or ""
+    p.species_confidence = payload.species_confidence
+    p.species_family = payload.species_family or ""
+    p.species_genus = payload.species_genus or ""
+    p.species_features = payload.species_features or ""
+    if payload.species:
+        p.identified_at = p.identified_at or datetime.utcnow()
+        p.identified_by = "manual" if not p.identified_by else p.identified_by
+    db.commit()
+    db.refresh(p)
+    return _serialize(p)
+
+
 @router.get("/stats/summary", summary="巡检照片统计")
 def photo_stats(
     project_id: int = Query(0),
@@ -361,4 +434,12 @@ def _serialize(p: PatrolPhoto) -> dict:
         "file_size": p.file_size,
         "uploaded_by": p.uploaded_by or "",
         "created_at": p.created_at.isoformat(),
+        "species": p.species or "",
+        "scientific_name": p.scientific_name or "",
+        "species_confidence": p.species_confidence,
+        "species_family": p.species_family or "",
+        "species_genus": p.species_genus or "",
+        "species_features": p.species_features or "",
+        "identified_at": p.identified_at.isoformat() if p.identified_at else None,
+        "identified_by": p.identified_by or "",
     }

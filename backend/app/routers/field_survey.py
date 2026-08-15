@@ -119,6 +119,80 @@ def delete_plot(plot_id: int, db: Session = Depends(get_db)):
     return {"detail": "deleted"}
 
 
+# ═══════════ 样地调查记录（App 提交） ═══════════
+from pydantic import BaseModel
+from app.models import SurveyRecord
+
+
+class SurveyRecordCreate(BaseModel):
+    project_id: int = 0
+    plot_id: Optional[int] = None
+    plot_code: str = ""
+    lon: Optional[float] = None
+    lat: Optional[float] = None
+    altitude: Optional[float] = None
+    species: str = ""
+    height_m: Optional[float] = None
+    dbh_cm: Optional[float] = None
+    canopy_density: Optional[float] = None   # 郁闭度 0-1
+    cover_pct: Optional[float] = None        # 盖度 %
+    note: str = ""
+    photo_id: Optional[int] = None
+
+
+def _survey_dict(s: SurveyRecord) -> dict:
+    d = {c.name: getattr(s, c.name) for c in s.__table__.columns}
+    d["created_at"] = s.created_at.isoformat() if s.created_at else ""
+    return d
+
+
+@router.post("/surveys", summary="提交样地调查记录")
+def create_survey(data: SurveyRecordCreate, request: Request, db: Session = Depends(get_db)):
+    uname, _ = _user_of(request)
+    if data.lon is not None and not (-180 <= data.lon <= 180):
+        raise HTTPException(status_code=400, detail="经度超出范围")
+    if data.lat is not None and not (-90 <= data.lat <= 90):
+        raise HTTPException(status_code=400, detail="纬度超出范围")
+    if data.canopy_density is not None and not (0 <= data.canopy_density <= 1):
+        raise HTTPException(status_code=400, detail="郁闭度应在 0-1 之间（如 0.35）")
+    # 若给了 plot_id 但没给坐标，自动取样地坐标
+    plot_code = data.plot_code or ""
+    if data.plot_id:
+        p = db.query(SamplePlot).get(data.plot_id)
+        if p:
+            plot_code = plot_code or p.code
+            if data.lon is None or data.lat is None:
+                data.lon, data.lat = p.lon, p.lat
+    d = data.dict()
+    d.pop("plot_code", None)   # 避免与显式传参重复
+    s = SurveyRecord(**d, plot_code=plot_code, surveyor=uname)
+    db.add(s); db.commit(); db.refresh(s)
+    return _survey_dict(s)
+
+
+@router.get("/surveys", summary="样地调查记录列表")
+def list_surveys(
+    project_id: int = Query(0),
+    plot_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    q = db.query(SurveyRecord)
+    if project_id:
+        q = q.filter(SurveyRecord.project_id == project_id)
+    if plot_id is not None:
+        q = q.filter(SurveyRecord.plot_id == plot_id)
+    return [_survey_dict(s) for s in q.order_by(SurveyRecord.created_at.desc()).all()]
+
+
+@router.delete("/surveys/{survey_id}", summary="删除样地调查记录")
+def delete_survey(survey_id: int, db: Session = Depends(get_db)):
+    s = db.query(SurveyRecord).get(survey_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="调查记录不存在")
+    db.delete(s); db.commit()
+    return {"detail": "deleted"}
+
+
 # ═══════════ 项目共享图层 ═══════════
 @router.get("/layers", response_model=List[ProjectLayerResponse], summary="项目共享矢量图层列表")
 def list_layers(project_id: int = Query(0), db: Session = Depends(get_db)):

@@ -9,13 +9,13 @@ import { useRoute } from 'vue-router'
 import Layout from './components/Layout.vue'
 
 const route = useRoute()
-// 移动端（含安卓 App 壳）访问 /field 野外科考页时，不套桌面侧边栏 Layout，页面裸渲染自管滚动
+// 移动端（含安卓 App 壳）访问 /field 野外科考页或 /m 外业页时，不套桌面侧边栏 Layout，页面裸渲染自管滚动
 const isMobile = (typeof window !== 'undefined' && typeof window.AndroidBridge !== 'undefined')
   || (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) && window.innerWidth <= 900)
-const isBare = computed(() => route.path === '/login' || (route.path === '/field' && isMobile))
+const isBare = computed(() => route.path === '/login' || route.path === '/m' || (route.path === '/field' && isMobile))
 
 watchEffect(() => {
-  document.body.classList.toggle('bare-field', route.path === '/field' && isMobile)
+  document.body.classList.toggle('bare-field', route.path === '/m' || (route.path === '/field' && isMobile))
 })
 </script>
 

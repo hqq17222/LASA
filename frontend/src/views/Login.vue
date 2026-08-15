@@ -54,7 +54,8 @@ async function doLogin() {
     localStorage.setItem('lasa_token', res.token)
     localStorage.setItem('lasa_user', JSON.stringify(res.user))
     ElMessage.success(`欢迎，${res.user.display_name || res.user.username}`)
-    router.push('/')
+    // 安卓 App 壳内登录后直接进入外业移动页，而非桌面工作台
+    router.push(typeof window.AndroidBridge !== 'undefined' ? '/m' : '/')
   } catch (e) {
     ElMessage.error(String(e))
   } finally {

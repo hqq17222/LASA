@@ -9,6 +9,7 @@ import Equipment from './views/Equipment.vue'
 import PhasePlan from './views/PhasePlan.vue'
 import PatrolPhotos from './views/PatrolPhotos.vue'
 import FieldSurvey from './views/FieldSurvey.vue'
+import MobileField from './views/MobileField.vue'
 import OpsBoard from './views/OpsBoard.vue'
 import Instructions from './views/Instructions.vue'
 import Login from './views/Login.vue'
@@ -24,6 +25,7 @@ const routes = [
   { path: '/phase-plan', name: 'PhasePlan', component: PhasePlan, meta: { title: '阶段计划' } },
   { path: '/patrol-photos', name: 'PatrolPhotos', component: PatrolPhotos, meta: { title: '巡检照片' } },
   { path: '/field', name: 'FieldSurvey', component: FieldSurvey, meta: { title: '野外科考' } },
+  { path: '/m', name: 'MobileField', component: MobileField, meta: { title: '外业调查' } },
   { path: '/ops', name: 'OpsBoard', component: OpsBoard, meta: { title: '外业看板' } },
   { path: '/alarms', name: 'Alarms', component: Alarms, meta: { title: '偏离度预警' } },
   { path: '/reports', name: 'Reports', component: Reports, meta: { title: '评估报告' } },
@@ -36,11 +38,13 @@ const router = createRouter({
   routes,
 })
 
-// 全局守卫：未登录跳登录页；用户管理仅管理员
+// 全局守卫：未登录跳登录页；用户管理仅管理员；App 壳内根路径重定向到外业移动页
 router.beforeEach((to) => {
   const token = localStorage.getItem('lasa_token')
-  if (to.path === '/login') return token ? '/' : true
+  const inApp = typeof window !== 'undefined' && typeof window.AndroidBridge !== 'undefined'
+  if (to.path === '/login') return token ? (inApp ? '/m' : '/') : true
   if (!token) return '/login'
+  if (inApp && to.path === '/') return '/m'
   if (to.meta.admin) {
     try {
       const u = JSON.parse(localStorage.getItem('lasa_user') || '{}')

@@ -21,6 +21,21 @@ class Settings(BaseSettings):
     GEE_SERVICE_ACCOUNT: str = ""
     MODEL_GATEWAY_TIMEOUT: int = 120
 
+    # ── 植物图片识别（视觉模型）──
+    # ⚠️ DeepSeek 官方 API 暂不支持图片输入（2026-08 实测确认），
+    # 默认智谱 GLM-4V-Flash（免费，OpenAI 兼容）；换其他视觉服务只需改这两项。
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_BASE_URL: str = "https://open.bigmodel.cn/api/paas/v4"
+    DEEPSEEK_MODEL: str = "glm-4v-flash"
+    DEEPSEEK_TIMEOUT: int = 120
+
+    # ── 语音转写（ASR）──
+    # DeepSeek 暂无 ASR API；默认使用本地 faster-whisper（数据不出服务器）。
+    # 不安装 faster-whisper 时接口仍可保存音频，转写文本留空并返回 warning。
+    VOICE_ASR_ENABLED: bool = True
+    WHISPER_MODEL: str = "small"                  # tiny/base/small/medium；服务器内存小用 base
+    VOICE_MAX_SIZE_MB: int = 20
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
